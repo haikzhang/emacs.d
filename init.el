@@ -155,3 +155,129 @@
 ;;; no-byte-compile: t
 ;;; End:
 (put 'erase-buffer 'disabled nil)
+
+
+;;begin update by jinchao ------------------------------
+(require 'auto-complete-config)
+(require 'auto-complete-clang)
+
+(setq ac-clang-flags
+      (mapcar (lambda (item) (concat "-I" item))
+              (split-string
+                              "
+ /usr/include/c++/5.2.1
+ /usr/include/c++/5.2.1/backward
+ /usr/lib/gcc/x86_64-linux-gnu/5.2.1/include
+ /usr/local/include
+ /usr/lib/gcc/x86_64-linux-gnu/5.2.1/include-fixed
+ /usr/include/x86_64-linux-gnu
+ /usr/include
+")))
+
+;; share clipboard
+;; aptitude install xclip
+;; aptitude install xsel
+
+;; prefer using the "clipboard" selection (the one the
+;; typically is used by c-c/c-v) before the primary selection
+;; (that uses mouse-select/middle-button-click)
+(setq x-select-enable-clipboard t)
+
+;; If emacs is run in a terminal, the clipboard- functions have no
+;; effect. Instead, we use of xsel, see
+;; http://www.vergenet.net/~conrad/software/xsel/ -- "a command-line
+;; program for getting and setting the contents of the X selection"
+(unless window-system
+  (when (getenv "DISPLAY")
+    ;; Callback for when user cuts
+    (defun xsel-cut-function (text &optional push)
+      ;; Insert text to temp-buffer, and "send" content to xsel stdin
+      (with-temp-buffer
+        (insert text)
+        ;; I prefer using the "clipboard" selection (the one the
+        ;; typically is used by c-c/c-v) before the primary selection
+        ;; (that uses mouse-select/middle-button-click)
+        (call-process-region (point-min) (point-max) "xsel" nil 0 nil "--clipboard" "--input")))
+    ;; Call back for when user pastes
+    (defun xsel-paste-function ()
+      ;; Find out what is current selection by xsel. If it is different
+      ;; from the top of the kill-ring (car kill-ring), then return
+      ;; it. Else, nil is returned, so whatever is in the top of the
+      ;; kill-ring will be used.
+      (let ((xsel-output (shell-command-to-string "xsel --clipboard --output")))
+        (unless (string= (car kill-ring) xsel-output)
+          xsel-output)))
+    ;; Attach callbacks to hooks
+    (setq interprogram-cut-function 'xsel-cut-function)
+    (setq interprogram-paste-function 'xsel-paste-function)
+    ;; Idea from
+    ;; http://shreevatsa.wordpress.com/2006/10/22/emacs-copypaste-and-x/
+    ;; http://www.mail-archive.com/help-gnu-emacs@gnu.org/msg03577.html
+    ))
+
+;; display word-sunhight
+(setq org-src-fontify-natively t)
+
+
+;; add translate english to chinese
+;; apt-get install stardict
+;; http://blog.163.com/green_pool/blog/static/101915526201231211343824/
+;;
+;; cp your-dic /usr/share/stardict/dic   ;; mkdir /usr/share/stardict/dic
+
+;; http://blog.chinaunix.net/uid-14753126-id-3035385.html
+;; apt-get install sdcv
+;; apt-get install espeak
+;; translate-and-speck.sh
+;; ./lisp/sdcv-mode.el
+(require 'sdcv-mode)
+(global-set-key (kbd "C-c d") 'sdcv-search)
+
+;; ./lisp/auto-save.el
+;; (require 'auto-save)            ;; 加载自动保存模块
+
+;; (auto-save-enable)              ;; 开启自动保存功能
+;; (setq auto-save-slient t)       ;; 自动保存的时候静悄悄的， 不要打扰我
+
+(defun buffer-too-big-p ()
+  (or (> (buffer-size) (* 5000 80))
+      (> (line-number-at-pos (point-max)) 5000)))
+(add-hook 'prog-mode-hook
+          (lambda ()
+            ;; turn off `linum-mode' when there are more than 5000 lines
+            (if (buffer-too-big-p) (linum-mode -1))))
+
+
+;; ------------------------------
+;; ------------------------------
+;; ------------------------------
+;; (require 'cpputils-cmake)
+(add-hook 'c-mode-common-hook
+          (lambda ()
+            (if (derived-mode-p 'c-mode 'c++-mode)
+                (cppcm-reload-all))))
+;; OPTIONAL, somebody reported that they can use this package with Fortran
+(add-hook 'c90-mode-hook (lambda () (cppcm-reload-all)))
+;; OPTIONAL, avoid typing full path when starting gdb
+(global-set-key (kbd "C-c C-g")
+                '(lambda () (interactive) (gud-gdb (concat "gdb --fullname " (cppcm-get-exe-path-current-buffer)))))
+;; OPTIONAL, some users need specify extra flags forwarded to compiler
+(setq cppcm-extra-preprocss-flags-from-user '("-I/usr/src/linux-headers-4.4.0-21/include" "-DNDEBUG"))
+
+
+
+(setq company-clang-arguments '("-I/mnt/main/program/c" "-I/usr/src/linux-headers-4.4.0-21/include"))
+
+
+(global-set-key (kbd "<f8>") 'avy-pop-mark)
+
+;; Please note `file-truename' must be used!
+(setenv "GTAGSLIBPATH" (concat "/usr/include"
+                               ":"
+                               (file-truename "/main/program/c++")
+                               ":"
+                               (file-truename "/main/program/c")))
+(setenv "MAKEOBJDIRPREFIX" (file-truename "~/obj/"))
+(setq company-backends '((company-dabbrev-code company-gtags)))
+;;end update by jinchao ------------------------------
+
